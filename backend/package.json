@@ -1,0 +1,24 @@
+{
+  "name": "tech-blog-central",
+  "version": "1.0.0",
+  "description": "Blog website related to tech",
+  "main": "server.js",
+  "scripts": {
+    "test": "npm start",
+    "start": "nodemon server.js"
+  },
+  "keywords": [
+    "Tech",
+    "blog",
+    "central"
+  ],
+  "author": "Sumit Jangid",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "mongodb": "^5.6.0",
+    "mongoose": "^7.3.1",
+    "nodemon": "^2.0.22"
+  }
+}
