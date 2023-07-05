@@ -7,7 +7,7 @@ const { ObjectId } = require("mongodb");
 const BlogTag = require("../model/blogTag");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-
+const auth = require("../middleware/auth");
 const saveSingleTag = async (tag, bId) => {
   try {
     let t = await BlogTag.findOne({
@@ -135,13 +135,33 @@ router.post(
 );
 
 /**
+ * @route GET /user/current
+ * @description Get the current user
+ */
+router.get("/current", auth, async (req, res) => {
+  try {
+    const currentUser = await User.findOne({
+      email: req.user.email,
+    });
+    if (!currentUser) {
+      return res.status(400).json("Current user not found");
+    }
+    res.status(200).json(currentUser);
+  } catch (err) {
+    console.log(err.message);
+    res.status(500).json("Server Error");
+  }
+});
+
+/**
  * @route POST   /user/blogs
  * @description Create a Blog
+ * @todo add auth and change req.body
  */
-router.post("/blogs", (req, res) => {
+router.post("/blogs", auth, (req, res) => {
   const newBlog = new Blog({
     title: req.body.title,
-    authorEmail: req.body.authorEmail,
+    authorEmail: req.user.email,
     publishedAt: new Date(req.body.publishedAt),
     body: req.body.body,
     tags: req.body.tags,
@@ -171,10 +191,11 @@ router.post("/blogs", (req, res) => {
 /**
  * @route GET /user/blogs
  * @description get all the blogs created by current user those are not archived
+ * @todo add auth and change query
  */
-router.get("/blogs", (req, res) => {
+router.get("/blogs", auth, (req, res) => {
   Blog.find({
-    // authorEmail: req.query.userEmail,
+    authorEmail: req.user.email,
     isArchived: false,
   })
     .then((blogs) => {
@@ -188,10 +209,11 @@ router.get("/blogs", (req, res) => {
 /**
  * @route GET /user/blogs/archived
  * @description get all archived blogs
+ * @todo add auth and change query
  */
-router.get("/blogs/archived", (req, res) => {
+router.get("/blogs/archived", auth, (req, res) => {
   Blog.find({
-    authorEmail: req.query.userEmail,
+    authorEmail: req.user.email,
     isArchived: true,
   })
     .then((blogs) => {
@@ -205,10 +227,11 @@ router.get("/blogs/archived", (req, res) => {
 /**
  * @route PUT /user/blogs/archive/:blogid
  * @description archive the particular blog created by user
+ * @todo add auth and change query
  */
-router.put("/blogs/archive/:blogid", (req, res) => {
+router.put("/blogs/archive/:blogid", auth, (req, res) => {
   Blog.findOne({
-    authorEmail: req.query.userEmail,
+    authorEmail: req.user.email,
     isArchived: false,
     _id: new ObjectId(req.params.blogid),
   })
@@ -231,12 +254,13 @@ router.put("/blogs/archive/:blogid", (req, res) => {
 });
 
 /**
- *  @route PUT /usr/blogs/unarchive/:blogid
+ *  @route PUT /user/blogs/unarchive/:blogid
  *  @description unarchive the particular blog created by user which are archived
+ *  @todo add auth and change query
  */
-router.put("/blogs/unarchive/:blogid", (req, res) => {
+router.put("/blogs/unarchive/:blogid", auth, (req, res) => {
   Blog.findOne({
-    authorEmail: req.query.userEmail,
+    authorEmail: req.user.email,
     isArchived: true,
     _id: new ObjectId(req.params.blogid),
   })
@@ -261,7 +285,5 @@ router.put("/blogs/unarchive/:blogid", (req, res) => {
 module.exports = router;
 
 /**
- * Register a user
- * Login user
- * Current user
+ *
  */
