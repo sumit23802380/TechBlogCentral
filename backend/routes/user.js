@@ -1,9 +1,12 @@
 const express = require("express");
 const router = express.Router();
+const { check, validationResult } = require("express-validator");
 const User = require("../model/user");
 const Blog = require("../model/blog");
 const { ObjectId } = require("mongodb");
 const BlogTag = require("../model/blogTag");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
 const saveSingleTag = async (tag, bId) => {
   try {
@@ -33,6 +36,103 @@ const saveSingleTag = async (tag, bId) => {
     res.status(400).send("Error while saving the tag");
   }
 };
+
+/**
+ * @route POST /user/register
+ * @description Register a new User
+ */
+router.post(
+  "/register",
+  [
+    check("name", "Name is Required").not().isEmpty(),
+    check("email", "Please include a valid email address").isEmail(),
+    check("password", "Please enter a password of min Length 8").isLength({
+      min: 8,
+    }),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log(errors);
+      return res.status(400).json(errors);
+    }
+    const { name, email, password } = req.body;
+
+    try {
+      let user = await User.findOne({
+        email: req.body.email,
+      });
+      if (user) {
+        return res
+          .status(400)
+          .json({ errors: [{ msg: "User already exists" }] });
+      }
+      const salt = await bcrypt.genSalt(10);
+      const hashed = await bcrypt.hash(password, salt);
+      user = new User({
+        name: name,
+        email: email,
+        password: hashed,
+      });
+      await user.save();
+      res.status(200).json(user);
+    } catch (err) {
+      console.log(err.message);
+      res.status(500).send("Server Error");
+    }
+  }
+);
+
+/**
+ *  @route POST /user/login
+ *  @description Login the user
+ */
+router.post(
+  "/login",
+  [
+    check("email", "Please inclue a valid email").isEmail(),
+    check("password", "Password is required").exists(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors });
+    }
+    const { email, password } = req.body;
+
+    try {
+      let user = await User.findOne({
+        email: req.body.email,
+      });
+
+      if (!user) {
+        return res.status(400).json("User does not exists");
+      }
+      const passwordMatch = await bcrypt.compare(password, user.password);
+      if (!passwordMatch) {
+        return res.status(400).json("Invalid Login");
+      }
+      const payload = {
+        email: email,
+        name: user.name,
+      };
+      jwt.sign(
+        payload,
+        process.env.JWT_PRIVATE_KEY,
+        { expiresIn: 3600000 },
+        (err, token) => {
+          if (err) {
+            throw err;
+          }
+          res.json({ success: true, token: token });
+        }
+      );
+    } catch (err) {
+      console.log(err.message);
+      res.status(500).send("Server error");
+    }
+  }
+);
 
 /**
  * @route POST   /user/blogs
@@ -159,3 +259,9 @@ router.put("/blogs/unarchive/:blogid", (req, res) => {
 });
 
 module.exports = router;
+
+/**
+ * Register a user
+ * Login user
+ * Current user
+ */
